@@ -2,28 +2,27 @@ import api from './api'
 import { config } from '@/config'
 import type { LoginCredentials, AuthTokens, AdminUser, AdminRole } from '@/types'
 
-// Interfaz para la respuesta REAL del backend (simple_api.py)
+// Interfaz para la respuesta REAL del backend
 interface BackendUser {
   id: string
   email: string
-  firstName: string      // camelCase del backend
-  lastName: string       // camelCase del backend
-  name: string           // nombre completo
+  first_name: string
+  last_name: string
+  full_name?: string
   phone?: string | null
-  photoUrl?: string | null  // camelCase
-  isActive: boolean      // camelCase
-  isVerified: boolean    // camelCase
-  role: string           // admin, operator, client
-  createdAt: string      // camelCase
+  photo_url?: string | null
+  is_active: boolean
+  is_verified?: boolean
+  role: string
+  created_at: string
 }
 
 interface LoginResponse {
-  success: boolean
-  data: {
-    user: BackendUser
-    token: string        // NO es access_token
-    refreshToken: string // NO es refresh_token
-  }
+  access_token: string
+  refresh_token: string
+  token_type: string
+  expires_in: number
+  user: BackendUser
 }
 
 export const authService = {
@@ -36,35 +35,36 @@ export const authService = {
     
     console.log('Login response:', response.data) // Debug
     
-    // Extraer de la estructura anidada: response.data.data
-    const { data: responseData } = response.data
-    const { user: backendUser, token, refreshToken } = responseData
+    // Extraer directamente de response.data (sin wrapper)
+    const { access_token, refresh_token, token_type, user: backendUser } = response.data
     
     const tokens: AuthTokens = {
-      access_token: token,
-      refresh_token: refreshToken,
-      token_type: 'bearer',
+      access_token,
+      refresh_token,
+      token_type,
     }
     
     // Mapear rol del backend a nuestro tipo
     const roleMap: Record<string, AdminRole> = {
+      'super_admin': 'super_admin',
       'admin': 'admin',
       'operator': 'operador',
-      'client': 'operador' // No debería llegar aquí, pero por si acaso
+      'operador': 'operador',
+      'client': 'operador'
     }
     
-    // Mapear usuario del backend (camelCase) a nuestro tipo (snake_case)
+    // Mapear usuario del backend a nuestro tipo
     const user: AdminUser = {
       id: backendUser.id,
       email: backendUser.email,
-      first_name: backendUser.firstName,
-      last_name: backendUser.lastName,
-      full_name: backendUser.name,
+      first_name: backendUser.first_name,
+      last_name: backendUser.last_name,
+      full_name: backendUser.full_name || `${backendUser.first_name} ${backendUser.last_name}`,
       phone: backendUser.phone,
-      photo_url: backendUser.photoUrl,
-      is_active: backendUser.isActive,
-      is_email_verified: backendUser.isVerified,
-      created_at: backendUser.createdAt,
+      photo_url: backendUser.photo_url,
+      is_active: backendUser.is_active,
+      is_email_verified: backendUser.is_verified ?? true,
+      created_at: backendUser.created_at,
       role: roleMap[backendUser.role] || 'operador',
     }
     
