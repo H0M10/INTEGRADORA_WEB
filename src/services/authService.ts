@@ -27,9 +27,9 @@ interface LoginResponse {
 }
 
 export const authService = {
-  // Login de administrador - usa endpoint específico para web
+  // Login de administrador
   async login(credentials: LoginCredentials): Promise<{ tokens: AuthTokens; user: AdminUser }> {
-    const response = await api.post<LoginResponse>('/auth/web/login', {
+    const response = await api.post<LoginResponse>('/auth/login', {
       email: credentials.email,
       password: credentials.password,
     })
