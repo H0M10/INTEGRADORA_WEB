@@ -1,5 +1,20 @@
 import api from './api'
-import type { DashboardStats, ChartData, AlertsByType, UsersByMonth } from '@/types'
+import type { DashboardStats, ChartData, AlertsByType, UsersByMonth, Alert } from '@/types'
+
+// Helper para transformar alert del backend (snake_case) a frontend (camelCase)
+const transformAlert = (alert: any): Alert => ({
+  id: alert.id,
+  type: alert.alert_type || alert.type,
+  severity: alert.severity,
+  message: alert.message || alert.title || '',
+  deviceId: alert.device_id || alert.deviceId || '',
+  deviceName: alert.device_name || alert.deviceName || '',
+  personName: alert.person_name || alert.personName || '',
+  isRead: alert.is_read ?? alert.isRead ?? false,
+  isResolved: alert.is_resolved ?? alert.isResolved ?? false,
+  resolvedAt: alert.resolved_at || alert.resolvedAt || null,
+  createdAt: alert.created_at || alert.createdAt || new Date().toISOString(),
+})
 
 export const dashboardService = {
   // Obtener estadísticas generales
@@ -27,9 +42,10 @@ export const dashboardService = {
   },
   
   // Obtener últimas alertas críticas
-  async getRecentCriticalAlerts(limit: number = 5) {
+  async getRecentCriticalAlerts(limit: number = 5): Promise<Alert[]> {
     const response = await api.get('/admin/dashboard/recent-alerts', { params: { limit } })
-    return response.data
+    const items = response.data.items || response.data || []
+    return items.map(transformAlert)
   },
   
   // Resumen general (para el endpoint existente del backend)

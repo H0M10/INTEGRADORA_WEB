@@ -43,10 +43,32 @@ export const settingsService = {
   },
 }
 
+// Helper para transformar audit log del backend (snake_case) a frontend
+const transformAuditLog = (log: any): AuditLog => ({
+  id: log.id,
+  admin_id: log.admin_id || log.adminId,
+  action: log.action || '',
+  entity_type: log.entity_type || log.resourceType || '',
+  entity_id: log.entity_id || log.resourceId || 0,
+  old_values: log.old_values || log.details || null,
+  new_values: log.new_values || null,
+  ip_address: log.ip_address || log.ipAddress || '',
+  user_agent: log.user_agent || log.userAgent || '',
+  created_at: log.created_at || log.createdAt || new Date().toISOString(),
+  admin: log.admin,
+})
+
 export const auditService = {
   // Obtener logs de auditoría
   async getLogs(params?: { page?: number; per_page?: number; admin_id?: number; action?: string }): Promise<PaginatedResponse<AuditLog>> {
     const response = await api.get('/admin/audit/logs', { params })
-    return response.data
+    const data = response.data
+    return {
+      items: (data.items || []).map(transformAuditLog),
+      total: data.total || 0,
+      page: data.page || 1,
+      limit: data.limit || 100,
+      pages: data.pages || 1,
+    }
   },
 }

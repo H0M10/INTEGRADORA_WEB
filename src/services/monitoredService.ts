@@ -21,29 +21,53 @@ export interface CreateMonitoredRequest {
   medical_notes?: string
 }
 
+// Helper para transformar monitored del backend (snake_case) a frontend (camelCase)
+const transformMonitored = (person: any): MonitoredPerson => ({
+  id: person.id,
+  firstName: person.first_name || person.firstName || '',
+  lastName: person.last_name || person.lastName || '',
+  fullName: person.full_name || `${person.first_name || ''} ${person.last_name || ''}`.trim(),
+  birthDate: person.birth_date || person.birthDate || null,
+  gender: person.gender || null,
+  bloodType: person.blood_type || person.bloodType || null,
+  photoUrl: person.photo_url || person.photoUrl || null,
+  isActive: person.is_active ?? person.isActive ?? true,
+  caregiverEmail: person.caregiver_email || person.caregiverEmail || '',
+  caregiverName: person.caregiver_name || person.caregiverName || '',
+  devicesCount: person.devices_count ?? person.devicesCount ?? 0,
+  createdAt: person.created_at || person.createdAt || new Date().toISOString(),
+})
+
 export const monitoredService = {
   // Listar personas monitoreadas
   async getAll(params?: MonitoredFilters): Promise<PaginatedResponse<MonitoredPerson>> {
     const response = await api.get('/admin/monitored', { params })
-    return response.data
+    const data = response.data
+    return {
+      items: (data.items || []).map(transformMonitored),
+      total: data.total || 0,
+      page: data.page || 1,
+      limit: data.limit || 100,
+      pages: data.pages || 1,
+    }
   },
   
   // Obtener una persona monitoreada
   async getById(id: string): Promise<MonitoredPerson> {
     const response = await api.get(`/admin/monitored/${id}`)
-    return response.data
+    return transformMonitored(response.data)
   },
   
   // Crear persona monitoreada
   async create(data: CreateMonitoredRequest): Promise<MonitoredPerson> {
     const response = await api.post('/admin/monitored', data)
-    return response.data
+    return transformMonitored(response.data)
   },
   
   // Actualizar persona monitoreada
   async update(id: string, data: UpdateMonitoredRequest): Promise<MonitoredPerson> {
     const response = await api.put(`/admin/monitored/${id}`, data)
-    return response.data
+    return transformMonitored(response.data)
   },
   
   // Eliminar persona monitoreada
@@ -54,13 +78,13 @@ export const monitoredService = {
   // Asignar dispositivo
   async assignDevice(personId: string, deviceId: string): Promise<MonitoredPerson> {
     const response = await api.post(`/admin/monitored/${personId}/assign-device`, { device_id: deviceId })
-    return response.data
+    return transformMonitored(response.data)
   },
   
   // Desvincular dispositivo
   async unassignDevice(personId: string): Promise<MonitoredPerson> {
     const response = await api.post(`/admin/monitored/${personId}/unassign-device`)
-    return response.data
+    return transformMonitored(response.data)
   },
   
   // Obtener vitales actuales

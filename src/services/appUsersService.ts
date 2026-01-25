@@ -7,17 +7,41 @@ import type {
   UserFilters 
 } from '@/types'
 
+// Helper para transformar usuario del backend (snake_case) a frontend (camelCase)
+const transformUser = (user: any): AppUser => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.first_name || user.firstName || '',
+  lastName: user.last_name || user.lastName || '',
+  fullName: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+  phone: user.phone || null,
+  photoUrl: user.photo_url || user.photoUrl || null,
+  isActive: user.is_active ?? user.isActive ?? true,
+  isVerified: user.is_verified ?? user.isVerified ?? false,
+  createdAt: user.created_at || user.createdAt || new Date().toISOString(),
+  lastLogin: user.last_login || user.lastLogin || null,
+  devicesCount: user.devices_count ?? user.devicesCount ?? 0,
+  monitoredCount: user.monitored_count ?? user.monitoredCount ?? 0,
+})
+
 export const appUsersService = {
   // Listar usuarios de la app móvil
   async getAll(params?: UserFilters): Promise<PaginatedResponse<AppUser>> {
     const response = await api.get('/admin/app-users', { params })
-    return response.data
+    const data = response.data
+    return {
+      items: (data.items || []).map(transformUser),
+      total: data.total || 0,
+      page: data.page || 1,
+      limit: data.limit || 100,
+      pages: data.pages || 1,
+    }
   },
   
   // Obtener un usuario
   async getById(id: string): Promise<AppUser> {
     const response = await api.get(`/admin/app-users/${id}`)
-    return response.data
+    return transformUser(response.data)
   },
   
   // Crear usuario
@@ -31,7 +55,7 @@ export const appUsersService = {
       phone: data.phone
     }
     const response = await api.post('/admin/app-users', payload)
-    return response.data
+    return transformUser(response.data)
   },
   
   // Actualizar usuario
@@ -44,13 +68,13 @@ export const appUsersService = {
     if (data.is_active !== undefined) payload.is_active = data.is_active
     
     const response = await api.put(`/admin/app-users/${id}`, payload)
-    return response.data
+    return transformUser(response.data)
   },
   
   // Activar/Desactivar usuario
   async toggleActive(id: string, isActive: boolean): Promise<AppUser> {
     const response = await api.patch(`/admin/app-users/${id}/status`, { is_active: isActive })
-    return response.data
+    return transformUser(response.data)
   },
   
   // Eliminar usuario (soft delete)
