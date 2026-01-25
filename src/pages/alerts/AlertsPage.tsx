@@ -83,14 +83,14 @@ export function AlertsPage() {
   })
 
   const stats = useMemo(() => {
-    const alerts = data?.data || []
+    const alerts = data?.items || []
     return {
       total: alerts.length,
       critical: alerts.filter(a => a.severity === 'critical').length,
       warning: alerts.filter(a => a.severity === 'warning').length,
       unresolved: alerts.filter(a => !a.isResolved).length,
     }
-  }, [data?.data])
+  }, [data?.items])
 
   const openViewModal = (alert: Alert) => { setSelectedAlert(alert); setModalMode('view') }
   const closeModal = () => { setModalMode(null); setSelectedAlert(null) }
@@ -98,7 +98,7 @@ export function AlertsPage() {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const alerts = data?.data || []
+      const alerts = data?.items || []
       const csv = ['Fecha,Tipo,Severidad,Persona,Mensaje,Estado', ...alerts.map(a => [
         format(new Date(a.createdAt), 'yyyy-MM-dd HH:mm'),
         ALERT_TYPE_LABELS[a.type] || a.type,
@@ -204,8 +204,8 @@ export function AlertsPage() {
       </Card>
 
       <Card padding="none">
-        <Table columns={columns} data={data?.data || []} keyExtractor={(a) => a.id} isLoading={isLoading} emptyMessage="No se encontraron alertas" onRowClick={(a) => openViewModal(a)} />
-        {data && data.total_pages > 1 && <div className="px-6 py-4 border-t flex justify-between items-center"><span className="text-sm text-gray-500">Página {page} de {data.total_pages}</span><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" size="sm" disabled={page >= data.total_pages} onClick={() => setPage(page + 1)}>Siguiente</Button></div></div>}
+        <Table columns={columns} data={data?.items || []} keyExtractor={(a) => a.id} isLoading={isLoading} emptyMessage="No se encontraron alertas" onRowClick={(a) => openViewModal(a)} />
+        {data && data.pages > 1 && <div className="px-6 py-4 border-t flex justify-between items-center"><span className="text-sm text-gray-500">Página {page} de {data.pages}</span><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>Siguiente</Button></div></div>}
       </Card>
 
       <Modal isOpen={modalMode === 'view'} onClose={closeModal} title="Detalles de la Alerta" size="lg">

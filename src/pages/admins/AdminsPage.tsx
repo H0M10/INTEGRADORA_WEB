@@ -87,7 +87,7 @@ export function AdminsPage() {
     defaultValues: { role: 'operador' },
   })
   
-  const admins = data?.data || []
+  const admins = data?.items || []
   
   // Solo super_admin puede ver esta página
   if (!hasPermission('admins', 'view')) {

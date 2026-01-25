@@ -16,7 +16,7 @@ export const alertsService = {
   // Obtener alertas pendientes
   async getPending(): Promise<Alert[]> {
     const response = await api.get('/admin/alerts/pending')
-    return response.data
+    return response.data.items || response.data
   },
   
   // Obtener estadísticas de alertas

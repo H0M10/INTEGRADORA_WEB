@@ -128,7 +128,7 @@ export function UsersPage() {
   })
 
   const filteredUsers = useMemo(() => {
-    const users = data?.data || []
+    const users = data?.items || []
     switch (statusFilter) {
       case 'active': return users.filter(u => u.isActive)
       case 'inactive': return users.filter(u => !u.isActive)
@@ -136,17 +136,17 @@ export function UsersPage() {
       case 'unverified': return users.filter(u => !u.isVerified)
       default: return users
     }
-  }, [data?.data, statusFilter])
+  }, [data?.items, statusFilter])
 
   const stats = useMemo(() => {
-    const users = data?.data || []
+    const users = data?.items || []
     return {
       total: users.length,
       active: users.filter(u => u.isActive).length,
       verified: users.filter(u => u.isVerified).length,
       withDevices: users.filter(u => (u.devicesCount || 0) > 0).length,
     }
-  }, [data?.data])
+  }, [data?.items])
 
   // Verificar email duplicado
   const checkEmailDebounced = useCallback(async (email: string) => {
@@ -271,7 +271,7 @@ export function UsersPage() {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const users = data?.data || []
+      const users = data?.items || []
       const csvContent = [
         ['ID', 'Nombre', 'Email', 'Teléfono', 'Estado', 'Verificado', 'Dispositivos', 'Monitoreados', 'Registro'].join(','),
         ...users.map(u => [u.id, `"${u.fullName}"`, u.email, u.phone || '', u.isActive ? 'Activo' : 'Inactivo', u.isVerified ? 'Sí' : 'No', u.devicesCount || 0, u.monitoredCount || 0, format(new Date(u.createdAt), 'dd/MM/yyyy HH:mm')].join(','))
@@ -390,12 +390,12 @@ export function UsersPage() {
 
       <Card padding="none">
         <Table columns={columns} data={filteredUsers} keyExtractor={(u) => u.id} isLoading={isLoading} emptyMessage="No se encontraron usuarios" onRowClick={(u) => openViewModal(u)} />
-        {data && data.total_pages > 1 && (
+        {data && data.pages > 1 && (
           <div className="px-6 py-4 border-t flex justify-between items-center">
-            <span className="text-sm text-gray-500">Página {page} de {data.total_pages} • {data.total} registros</span>
+            <span className="text-sm text-gray-500">Página {page} de {data.pages} • {data.total} registros</span>
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
-              <Button variant="secondary" size="sm" disabled={page >= data.total_pages} onClick={() => setPage(p => p + 1)}>Siguiente</Button>
+              <Button variant="secondary" size="sm" disabled={page >= data.pages} onClick={() => setPage(p => p + 1)}>Siguiente</Button>
             </div>
           </div>
         )}

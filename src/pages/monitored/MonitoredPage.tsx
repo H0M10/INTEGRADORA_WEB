@@ -49,7 +49,7 @@ export function MonitoredPage() {
   const { data: devicesData } = useQuery({
     queryKey: ['devices-available'],
     queryFn: () => devicesService.getAll({ page: 1, limit: 100 }),
-    select: (data) => data.data.filter((d: Device) => !d.personName && d.isActive),
+    select: (data) => data.items.filter((d: Device) => !d.personName && d.isActive),
   })
 
   const createMutation = useMutation({
@@ -83,13 +83,13 @@ export function MonitoredPage() {
   })
 
   const stats = useMemo(() => {
-    const persons = data?.data || []
+    const persons = data?.items || []
     return {
       total: persons.length,
       withDevice: persons.filter(p => p.devicesCount > 0).length,
       avgAge: persons.length ? Math.round(persons.reduce((sum, p) => sum + (p.birthDate ? differenceInYears(new Date(), new Date(p.birthDate)) : 0), 0) / persons.length) : 0,
     }
-  }, [data?.data])
+  }, [data?.items])
 
   const openCreateModal = () => { setFormData(initialFormData); setFormErrors({}); setModalMode('create') }
   const openEditModal = (person: MonitoredPerson) => {
@@ -129,7 +129,7 @@ export function MonitoredPage() {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const persons = data?.data || []
+      const persons = data?.items || []
       const csv = ['Nombre,Apellido,Edad,Género,Tipo de sangre,Dispositivos', ...persons.map(p => [p.firstName, p.lastName, p.birthDate ? differenceInYears(new Date(), new Date(p.birthDate)) : 'N/A', p.gender ? GENDER_LABELS[p.gender] || p.gender : 'N/A', p.bloodType ? BLOOD_TYPE_LABELS[p.bloodType] || p.bloodType : 'N/A', p.devicesCount].join(','))].join('\n')
       const blob = new Blob([csv], { type: 'text/csv' })
       const link = document.createElement('a')
@@ -220,8 +220,8 @@ export function MonitoredPage() {
       </Card>
 
       <Card padding="none">
-        <Table columns={columns} data={data?.data || []} keyExtractor={(p) => p.id} isLoading={isLoading} emptyMessage="No se encontraron personas registradas" onRowClick={(p) => openViewModal(p)} />
-        {data && data.total_pages > 1 && <div className="px-6 py-4 border-t flex justify-between items-center"><span className="text-sm text-gray-500">Página {page} de {data.total_pages}</span><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" size="sm" disabled={page >= data.total_pages} onClick={() => setPage(page + 1)}>Siguiente</Button></div></div>}
+        <Table columns={columns} data={data?.items || []} keyExtractor={(p) => p.id} isLoading={isLoading} emptyMessage="No se encontraron personas registradas" onRowClick={(p) => openViewModal(p)} />
+        {data && data.pages > 1 && <div className="px-6 py-4 border-t flex justify-between items-center"><span className="text-sm text-gray-500">Página {page} de {data.pages}</span><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>Siguiente</Button></div></div>}
       </Card>
 
       <Modal isOpen={modalMode === 'view'} onClose={closeModal} title="Perfil del Paciente" size="lg">

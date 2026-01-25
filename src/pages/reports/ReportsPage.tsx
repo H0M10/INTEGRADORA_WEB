@@ -54,10 +54,10 @@ export function ReportsPage() {
   const { data: monitoredData } = useQuery({ queryKey: ['monitored-report'], queryFn: () => monitoredService.getAll({ page: 1 }) })
   const { data: alertsData } = useQuery({ queryKey: ['alerts-report'], queryFn: () => alertsService.getAll({ page: 1 }) })
 
-  const users = usersData?.data || []
-  const devices = devicesData?.data || []
-  const monitored = monitoredData?.data || []
-  const alerts = alertsData?.data || []
+  const users = usersData?.items || []
+  const devices = devicesData?.items || []
+  const monitored = monitoredData?.items || []
+  const alerts = alertsData?.items || []
 
   const getDateRange = () => {
     const now = new Date()

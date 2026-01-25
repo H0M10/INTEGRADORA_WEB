@@ -67,14 +67,14 @@ export function DevicesPage() {
   })
 
   const stats = useMemo(() => {
-    const devices = data?.data || []
+    const devices = data?.items || []
     return {
       total: devices.length,
       connected: devices.filter(d => d.isConnected).length,
       lowBattery: devices.filter(d => d.batteryLevel < 20).length,
       unassigned: devices.filter(d => !d.personName).length,
     }
-  }, [data?.data])
+  }, [data?.items])
 
   const getBatteryInfo = (level: number) => {
     if (level > 60) return { icon: <Battery className="w-4 h-4 text-green-500" />, color: 'text-green-600', bg: 'bg-green-50' }
@@ -107,7 +107,7 @@ export function DevicesPage() {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const devices = data?.data || []
+      const devices = data?.items || []
       const csv = ['Código,Serial,Modelo,Estado,Batería,Asignado a,Última conexión', ...devices.map(d => [d.code, d.serialNumber, d.model, DEVICE_STATUS_LABELS[d.status], `${d.batteryLevel}%`, d.personName || 'Sin asignar', d.lastSeen ? format(new Date(d.lastSeen), 'dd/MM/yyyy HH:mm') : 'N/A'].join(','))].join('\n')
       const blob = new Blob([csv], { type: 'text/csv' })
       const link = document.createElement('a')
@@ -195,8 +195,8 @@ export function DevicesPage() {
       </Card>
 
       <Card padding="none">
-        <Table columns={columns} data={data?.data || []} keyExtractor={(d) => d.id} isLoading={isLoading} emptyMessage="No se encontraron dispositivos" onRowClick={(d) => openViewModal(d)} />
-        {data && data.total_pages > 1 && <div className="px-6 py-4 border-t flex justify-between items-center"><span className="text-sm text-gray-500">Página {page} de {data.total_pages}</span><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" size="sm" disabled={page >= data.total_pages} onClick={() => setPage(page + 1)}>Siguiente</Button></div></div>}
+        <Table columns={columns} data={data?.items || []} keyExtractor={(d) => d.id} isLoading={isLoading} emptyMessage="No se encontraron dispositivos" onRowClick={(d) => openViewModal(d)} />
+        {data && data.pages > 1 && <div className="px-6 py-4 border-t flex justify-between items-center"><span className="text-sm text-gray-500">Página {page} de {data.pages}</span><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Anterior</Button><Button variant="secondary" size="sm" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>Siguiente</Button></div></div>}
       </Card>
 
       <Modal isOpen={modalMode !== null} onClose={closeModal} title={modalMode === 'create' ? 'Registrar Dispositivo' : modalMode === 'edit' ? 'Editar Dispositivo' : 'Detalles del Dispositivo'} size="lg">

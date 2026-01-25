@@ -328,17 +328,11 @@ export interface AuditLog {
 
 // ===== PAGINACIÓN =====
 export interface PaginatedResponse<T> {
-  data: T[]
+  items: T[]
   total: number
   page: number
-  per_page: number
-  total_pages: number
-  pagination?: {
-    total: number
-    page: number
-    perPage: number
-    totalPages: number
-  }
+  limit: number
+  pages: number
 }
 
 export interface PaginationParams {
