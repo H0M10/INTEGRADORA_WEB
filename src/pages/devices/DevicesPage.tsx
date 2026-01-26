@@ -89,8 +89,28 @@ export function DevicesPage() {
 
   const validateForm = (): boolean => {
     const errors: Partial<DeviceFormData> = {}
-    if (!formData.serialNumber) errors.serialNumber = 'Número de serie requerido'
-    if (!formData.code) errors.code = 'Código requerido'
+    
+    // Validar número de serie (mínimo 5 caracteres)
+    if (!formData.serialNumber) {
+      errors.serialNumber = 'Número de serie requerido'
+    } else if (formData.serialNumber.trim().length < 5) {
+      errors.serialNumber = 'Mínimo 5 caracteres'
+    } else if (formData.serialNumber.trim().length > 50) {
+      errors.serialNumber = 'Máximo 50 caracteres'
+    }
+    
+    // Validar código del dispositivo (6-20 caracteres, consistente con móvil)
+    const cleanCode = formData.code.replace(/[-\s]/g, '').toUpperCase()
+    if (!formData.code) {
+      errors.code = 'Código requerido'
+    } else if (cleanCode.length < 6) {
+      errors.code = 'El código debe tener mínimo 6 caracteres'
+    } else if (cleanCode.length > 20) {
+      errors.code = 'El código debe tener máximo 20 caracteres'
+    } else if (!/^[A-Z0-9]+$/.test(cleanCode)) {
+      errors.code = 'Solo letras y números (sin caracteres especiales)'
+    }
+    
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -98,9 +118,11 @@ export function DevicesPage() {
   const handleSubmit = () => {
     if (!validateForm()) return
     if (modalMode === 'create') {
-      createMutation.mutate({ serial_number: formData.serialNumber, code: formData.code, name: formData.name || undefined, model: formData.model })
+      // Limpiar y normalizar el código antes de enviar
+      const cleanCode = formData.code.replace(/[-\s]/g, '').toUpperCase()
+      createMutation.mutate({ serial_number: formData.serialNumber.trim(), code: cleanCode, name: formData.name?.trim() || undefined, model: formData.model })
     } else if (modalMode === 'edit' && selectedDevice) {
-      updateMutation.mutate({ id: selectedDevice.id, data: { name: formData.name || undefined } })
+      updateMutation.mutate({ id: selectedDevice.id, data: { name: formData.name?.trim() || undefined } })
     }
   }
 
@@ -219,10 +241,10 @@ export function DevicesPage() {
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Número de Serie *</label><input type="text" value={formData.serialNumber} onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.serialNumber ? 'border-red-500' : 'border-gray-200'}`} placeholder="SN-2024-001" disabled={modalMode === 'edit'} />{formErrors.serialNumber && <p className="text-xs text-red-500 mt-1">{formErrors.serialNumber}</p>}</div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Código *</label><input type="text" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.code ? 'border-red-500' : 'border-gray-200'}`} placeholder="NB-001" disabled={modalMode === 'edit'} />{formErrors.code && <p className="text-xs text-red-500 mt-1">{formErrors.code}</p>}</div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Número de Serie *</label><input type="text" value={formData.serialNumber} onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value.toUpperCase() })} maxLength={50} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${formErrors.serialNumber ? 'border-red-500' : 'border-gray-200'}`} placeholder="SN-2024-001" disabled={modalMode === 'edit'} />{formErrors.serialNumber && <p className="text-xs text-red-500 mt-1">{formErrors.serialNumber}</p>}<p className="text-xs text-gray-400 mt-1">Mín. 5, máx. 50 caracteres</p></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Código de Vinculación *</label><input type="text" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} maxLength={20} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wider ${formErrors.code ? 'border-red-500' : 'border-gray-200'}`} placeholder="NOVA001" disabled={modalMode === 'edit'} />{formErrors.code && <p className="text-xs text-red-500 mt-1">{formErrors.code}</p>}<p className="text-xs text-gray-400 mt-1">6-20 caracteres (letras y números)</p></div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre (Alias)</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Pulsera de Juan" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre (Alias)</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} maxLength={100} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Pulsera de Juan" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label><select value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-white" disabled={modalMode === 'edit'}><option value="NovaBand Pro">NovaBand Pro</option><option value="NovaBand Lite">NovaBand Lite</option><option value="NovaBand Plus">NovaBand Plus</option></select></div>
             <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={closeModal}>Cancelar</Button><Button variant="primary" onClick={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} leftIcon={<Save className="w-4 h-4" />}>{modalMode === 'create' ? 'Registrar' : 'Guardar'}</Button></div>
           </div>
