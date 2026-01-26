@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore, useUIStore } from '@/stores'
+import { checkSessionValidity } from '@/services/api'
 import { 
   Activity, 
   LayoutDashboard, 
@@ -86,6 +87,36 @@ export function DashboardLayout() {
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname, setSidebarOpen])
+  
+  // Verificar sesión periódicamente (cada 60 segundos)
+  useEffect(() => {
+    const checkSession = () => {
+      if (!checkSessionValidity()) {
+        console.log('[Auth] Sesión inválida detectada en verificación periódica')
+        sessionStorage.setItem('auth_redirect_reason', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.')
+        logout()
+        navigate('/login')
+      }
+    }
+    
+    // Verificar inmediatamente al montar
+    checkSession()
+    
+    // Verificar cada 60 segundos
+    const interval = setInterval(checkSession, 60000)
+    
+    // Verificar cuando la ventana vuelve a tener foco (usuario vuelve a la pestaña)
+    const handleFocus = () => {
+      console.log('[Auth] Ventana recuperó foco, verificando sesión...')
+      checkSession()
+    }
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [logout, navigate])
   
   const handleLogout = () => {
     logout()

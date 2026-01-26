@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle, Clock } from 'lucide-react'
 import { useAuthStore } from '@/stores'
 import { Button, Input } from '@/components/ui'
 import toast from 'react-hot-toast'
@@ -24,6 +24,18 @@ export function LoginPage() {
   const navigate = useNavigate()
   const { login, isLoading, error, clearError } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null)
+  
+  // Verificar si hay mensaje de sesión expirada
+  useEffect(() => {
+    const redirectReason = sessionStorage.getItem('auth_redirect_reason')
+    if (redirectReason) {
+      setSessionMessage(redirectReason)
+      sessionStorage.removeItem('auth_redirect_reason')
+      // Mostrar toast también
+      toast.error(redirectReason, { duration: 5000 })
+    }
+  }, [])
   
   const { 
     register, 
@@ -57,6 +69,17 @@ export function LoginPage() {
           Acceso exclusivo para administradores del sistema
         </p>
       </div>
+      
+      {/* Mensaje de sesión expirada */}
+      {sessionMessage && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+          <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Sesión finalizada</p>
+            <p className="text-sm text-amber-600 mt-1">{sessionMessage}</p>
+          </div>
+        </div>
+      )}
       
       {/* Mensaje de error global */}
       {error && (
