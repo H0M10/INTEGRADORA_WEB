@@ -28,20 +28,22 @@ interface LoginResponse {
 export const authService = {
   // Login de administrador
   async login(credentials: LoginCredentials): Promise<{ tokens: AuthTokens; user: AdminUser }> {
-    const response = await api.post<LoginResponse>('/auth/login', {
+    const response = await api.post<any>('/auth/login', {
       email: credentials.email,
       password: credentials.password,
     })
     
     console.log('Login response:', response.data) // Debug
     
-    // Extraer directamente de response.data (sin wrapper)
-    const { access_token, refresh_token, token_type, user: backendUser } = response.data
+    // El backend devuelve: { success: true, data: { user, token, refreshToken } }
+    const responseData = response.data.data || response.data
+    const backendUser = responseData.user
     
+    // El token viene como 'token' no 'access_token'
     const tokens: AuthTokens = {
-      access_token,
-      refresh_token,
-      token_type,
+      access_token: responseData.token || responseData.access_token,
+      refresh_token: responseData.refreshToken || responseData.refresh_token,
+      token_type: 'bearer',
     }
     
     // Mapear rol del backend a nuestro tipo
@@ -53,18 +55,18 @@ export const authService = {
       'client': 'operador'
     }
     
-    // Mapear usuario del backend a nuestro tipo
+    // Mapear usuario del backend a nuestro tipo (puede venir en camelCase o snake_case)
     const user: AdminUser = {
       id: backendUser.id,
       email: backendUser.email,
-      first_name: backendUser.first_name,
-      last_name: backendUser.last_name,
-      full_name: backendUser.full_name || `${backendUser.first_name} ${backendUser.last_name}`,
+      first_name: backendUser.firstName || backendUser.first_name,
+      last_name: backendUser.lastName || backendUser.last_name,
+      full_name: backendUser.name || backendUser.full_name || `${backendUser.firstName || backendUser.first_name} ${backendUser.lastName || backendUser.last_name}`,
       phone: backendUser.phone,
-      photo_url: backendUser.photo_url,
-      is_active: backendUser.is_active,
-      is_email_verified: backendUser.is_verified ?? true,
-      created_at: backendUser.created_at,
+      photo_url: backendUser.photoUrl || backendUser.photo_url,
+      is_active: backendUser.isActive ?? backendUser.is_active ?? true,
+      is_email_verified: backendUser.isVerified ?? backendUser.is_verified ?? true,
+      created_at: backendUser.createdAt || backendUser.created_at,
       role: roleMap[backendUser.role] || 'operador',
     }
     
