@@ -21,7 +21,7 @@ interface DeviceFormData {
   model: string
 }
 
-const initialFormData: DeviceFormData = { serialNumber: '', code: '', name: '', model: 'NovaBand Pro' }
+const initialFormData: DeviceFormData = { serialNumber: '', code: '', name: '', model: 'NovaBand V1' }
 
 export function DevicesPage() {
   const queryClient = useQueryClient()
@@ -120,7 +120,8 @@ export function DevicesPage() {
     if (modalMode === 'create') {
       // Limpiar y normalizar el código antes de enviar
       const cleanCode = formData.code.replace(/[-\s]/g, '').toUpperCase()
-      createMutation.mutate({ serial_number: formData.serialNumber.trim(), code: cleanCode, name: formData.name?.trim() || undefined, model: formData.model })
+      // No enviar name - se asignará cuando el usuario vincule desde la app
+      createMutation.mutate({ serial_number: formData.serialNumber.trim(), code: cleanCode, model: formData.model })
     } else if (modalMode === 'edit' && selectedDevice) {
       updateMutation.mutate({ id: selectedDevice.id, data: { name: formData.name?.trim() || undefined } })
     }
@@ -149,7 +150,7 @@ export function DevicesPage() {
           <div className={`p-2.5 rounded-xl ${device.isConnected ? 'bg-gradient-to-br from-green-100 to-green-50' : 'bg-gray-100'}`}>
             <Smartphone className={`w-5 h-5 ${device.isConnected ? 'text-green-600' : 'text-gray-400'}`} />
           </div>
-          <div><p className="font-mono font-semibold text-gray-900">{device.code}</p><p className="text-xs text-gray-500">{device.model}</p></div>
+          <div><p className="font-mono font-bold text-gray-900 bg-blue-50 px-2 py-0.5 rounded inline-block" title="Código de vinculación">{device.code}</p><p className="text-xs text-gray-500 mt-0.5">{device.model}</p></div>
         </div>
       ),
     },
@@ -226,7 +227,7 @@ export function DevicesPage() {
           <div className="space-y-6">
             <div className="flex items-start gap-4 pb-4 border-b">
               <div className={`p-4 rounded-2xl ${selectedDevice.isConnected ? 'bg-gradient-to-br from-green-100 to-green-50' : 'bg-gray-100'}`}><Smartphone className={`w-10 h-10 ${selectedDevice.isConnected ? 'text-green-600' : 'text-gray-400'}`} /></div>
-              <div className="flex-1"><h3 className="text-xl font-bold font-mono">{selectedDevice.code}</h3><p className="text-gray-500">{selectedDevice.model} • v{selectedDevice.firmwareVersion}</p><div className="flex gap-2 mt-2"><Badge variant={selectedDevice.isConnected ? 'success' : 'gray'}>{selectedDevice.isConnected ? 'Conectado' : 'Desconectado'}</Badge>{selectedDevice.isActive && <Badge variant="primary">Activo</Badge>}</div></div>
+              <div className="flex-1"><h3 className="text-xl font-bold font-mono bg-blue-100 text-blue-800 px-3 py-1 rounded-lg inline-block">{selectedDevice.code}</h3><p className="text-sm text-gray-500 mt-1">Código de vinculación</p><p className="text-gray-500 mt-2">{selectedDevice.model} • v{selectedDevice.firmwareVersion}</p><div className="flex gap-2 mt-2"><Badge variant={selectedDevice.isConnected ? 'success' : 'gray'}>{selectedDevice.isConnected ? 'Conectado' : 'Desconectado'}</Badge>{selectedDevice.isActive && <Badge variant="primary">Activo</Badge>}</div></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded-xl"><p className="text-xs text-gray-500">Serial</p><p className="font-mono font-semibold">{selectedDevice.serialNumber}</p></div>
@@ -267,8 +268,8 @@ export function DevicesPage() {
                 <p className="text-xs text-gray-400 mt-1">6-20 caracteres (letras y números)</p>
               </div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre (Alias)</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} maxLength={100} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Pulsera de Juan" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label><select value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-white" disabled={modalMode === 'edit'}><option value="NovaBand Pro">NovaBand Pro</option><option value="NovaBand Lite">NovaBand Lite</option><option value="NovaBand Plus">NovaBand Plus</option></select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Modelo *</label><select value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-white" disabled={modalMode === 'edit'}><option value="NovaBand V1">NovaBand V1</option><option value="NovaBand V2">NovaBand V2</option><option value="NovaBand Pro">NovaBand Pro</option></select></div>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4"><p className="text-sm text-blue-700"><strong>💡 Nota:</strong> El nombre/alias del dispositivo se asignará cuando el usuario lo vincule desde la app móvil.</p></div>
             <div className="flex justify-end gap-3 pt-4 border-t"><Button variant="secondary" onClick={closeModal}>Cancelar</Button><Button variant="primary" onClick={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} leftIcon={<Save className="w-4 h-4" />}>{modalMode === 'create' ? 'Registrar' : 'Guardar'}</Button></div>
           </div>
         )}
