@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   FileText, Download, Calendar, TrendingUp, Users, Smartphone,
   Bell, Heart, Activity, BarChart3, PieChart, RefreshCw, FileSpreadsheet,
-  Printer, Share2, CheckCircle, AlertTriangle,
+  Printer, Share2, CheckCircle, AlertTriangle, Thermometer,
   ArrowUpRight, ArrowDownRight, Minus, Shield, Zap
 } from 'lucide-react'
 import { Card, PageHeader, Button, Badge, Modal } from '@/components/ui'
@@ -100,29 +100,153 @@ export function ReportsPage() {
   const handleExport = async (exportFormat: ExportFormat) => {
     setIsExporting(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      let content = ''
       const fileName = `reporte_${selectedReport}_${format(new Date(), 'yyyy-MM-dd')}`
 
-      if (exportFormat === 'csv') {
-        if (selectedReport === 'overview') {
-          content = ['Métrica,Valor', `Total Usuarios,${stats.users.total}`, `Usuarios Activos,${stats.users.active}`, `Usuarios Verificados,${stats.users.verified}`, `Total Dispositivos,${stats.devices.total}`, `Dispositivos Conectados,${stats.devices.connected}`, `Dispositivos con Batería Baja,${stats.devices.lowBattery}`, `Personas Monitoreadas,${stats.monitored.total}`, `Total Alertas,${stats.alerts.total}`, `Alertas Activas,${stats.alerts.active}`, `Alertas Críticas,${stats.alerts.critical}`].join('\n')
-        } else if (selectedReport === 'users') {
-          content = ['Email,Nombre,Apellido,Estado,Verificado,Dispositivos,Fecha Registro', ...users.map(u => `${u.email},${u.firstName},${u.lastName},${u.isActive ? 'Activo' : 'Inactivo'},${u.isVerified ? 'Sí' : 'No'},${u.devicesCount},${format(new Date(u.createdAt), 'dd/MM/yyyy')}`)].join('\n')
-        } else if (selectedReport === 'devices') {
-          content = ['Código,Serial,Modelo,Estado,Batería,Asignado,Última Conexión', ...devices.map(d => `${d.code},${d.serialNumber},${d.model},${d.isConnected ? 'Conectado' : 'Desconectado'},${d.batteryLevel}%,${d.personName || 'N/A'},${d.lastSeen ? format(new Date(d.lastSeen), 'dd/MM/yyyy HH:mm') : 'N/A'}`)].join('\n')
-        } else if (selectedReport === 'alerts') {
-          content = ['Tipo,Severidad,Persona,Mensaje,Estado,Fecha', ...alerts.map(a => `${ALERT_TYPE_LABELS[a.type] || a.type},${ALERT_SEVERITY_LABELS[a.severity]},${a.personName || 'N/A'},"${a.message}",${a.isResolved ? 'Resuelta' : 'Activa'},${format(new Date(a.createdAt), 'dd/MM/yyyy HH:mm')}`)].join('\n')
+      // Generar datos según tipo de reporte seleccionado
+      const getReportData = (): { headers: string[]; rows: string[][] } => {
+        switch (selectedReport) {
+          case 'overview':
+            return {
+              headers: ['Métrica', 'Valor'],
+              rows: [
+                ['Total Usuarios', String(stats.users.total)],
+                ['Usuarios Activos', String(stats.users.active)],
+                ['Usuarios Verificados', String(stats.users.verified)],
+                ['Total Dispositivos', String(stats.devices.total)],
+                ['Dispositivos Conectados', String(stats.devices.connected)],
+                ['Dispositivos Batería Baja', String(stats.devices.lowBattery)],
+                ['Personas Monitoreadas', String(stats.monitored.total)],
+                ['Total Alertas', String(stats.alerts.total)],
+                ['Alertas Activas', String(stats.alerts.active)],
+                ['Alertas Críticas', String(stats.alerts.critical)],
+              ],
+            }
+          case 'users':
+            return {
+              headers: ['Email', 'Nombre', 'Apellido', 'Estado', 'Verificado', 'Dispositivos', 'Fecha Registro'],
+              rows: users.map(u => [u.email, u.firstName, u.lastName, u.isActive ? 'Activo' : 'Inactivo', u.isVerified ? 'Sí' : 'No', String(u.devicesCount), format(new Date(u.createdAt), 'dd/MM/yyyy')]),
+            }
+          case 'devices':
+            return {
+              headers: ['Código', 'Serial', 'Modelo', 'Estado', 'Batería', 'Asignado', 'Última Conexión'],
+              rows: devices.map(d => [d.code, d.serialNumber, d.model, d.isConnected ? 'Conectado' : 'Desconectado', `${d.batteryLevel}%`, d.personName || 'N/A', d.lastSeen ? format(new Date(d.lastSeen), 'dd/MM/yyyy HH:mm') : 'N/A']),
+            }
+          case 'alerts':
+            return {
+              headers: ['Tipo', 'Severidad', 'Persona', 'Mensaje', 'Estado', 'Fecha'],
+              rows: alerts.map(a => [ALERT_TYPE_LABELS[a.type] || a.type, ALERT_SEVERITY_LABELS[a.severity], a.personName || 'N/A', a.message, a.isResolved ? 'Resuelta' : 'Activa', format(new Date(a.createdAt), 'dd/MM/yyyy HH:mm')]),
+            }
+          default:
+            return { headers: ['Dato'], rows: [['Reporte en desarrollo']] }
         }
-        const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+      }
+
+      const { headers, rows } = getReportData()
+
+      if (exportFormat === 'pdf') {
+        // Importar dinámicamente para no afectar el bundle inicial
+        const { default: jsPDF } = await import('jspdf')
+        const autoTable = (await import('jspdf-autotable')).default
+
+        const doc = new jsPDF()
+        
+        // Header del documento
+        doc.setFontSize(20)
+        doc.setTextColor(37, 99, 235) // blue-600
+        doc.text('NovaGuardian', 14, 20)
+        doc.setFontSize(10)
+        doc.setTextColor(107, 114, 128) // gray-500
+        doc.text('Panel de Administración', 14, 26)
+        
+        // Línea separadora
+        doc.setDrawColor(37, 99, 235)
+        doc.setLineWidth(0.5)
+        doc.line(14, 30, 196, 30)
+        
+        // Título del reporte
+        doc.setFontSize(16)
+        doc.setTextColor(17, 24, 39) // gray-900
+        doc.text(currentReport?.title || 'Reporte', 14, 40)
+        
+        // Metadatos
+        doc.setFontSize(9)
+        doc.setTextColor(107, 114, 128)
+        doc.text(`Período: ${format(range.from, "dd MMM yyyy", { locale: es })} - ${format(range.to, "dd MMM yyyy", { locale: es })}`, 14, 47)
+        doc.text(`Generado: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 52)
+        
+        // Tabla con autoTable
+        autoTable(doc, {
+          head: [headers],
+          body: rows,
+          startY: 58,
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [243, 244, 246] },
+          margin: { left: 14, right: 14 },
+        })
+        
+        // Footer
+        const pageCount = doc.getNumberOfPages()
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i)
+          doc.setFontSize(8)
+          doc.setTextColor(156, 163, 175)
+          doc.text(`NovaGuardian Admin — Página ${i} de ${pageCount}`, 14, doc.internal.pageSize.height - 10)
+        }
+        
+        doc.save(`${fileName}.pdf`)
+
+      } else if (exportFormat === 'excel') {
+        const XLSX = await import('xlsx')
+        
+        // Crear workbook
+        const wb = XLSX.utils.book_new()
+        
+        // Crear worksheet con datos
+        const wsData = [headers, ...rows]
+        const ws = XLSX.utils.aoa_to_sheet(wsData)
+        
+        // Ajustar anchos de columnas
+        const colWidths = headers.map((h, i) => {
+          const maxLen = Math.max(h.length, ...rows.map(r => (r[i] || '').length))
+          return { wch: Math.min(maxLen + 4, 40) }
+        })
+        ws['!cols'] = colWidths
+        
+        // Agregar hoja
+        XLSX.utils.book_append_sheet(wb, ws, currentReport?.title || 'Reporte')
+        
+        // Agregar hoja de metadatos
+        const metaData = [
+          ['NovaGuardian - Panel de Administración'],
+          [''],
+          ['Reporte', currentReport?.title || ''],
+          ['Período', `${format(range.from, "dd/MM/yyyy")} - ${format(range.to, "dd/MM/yyyy")}`],
+          ['Generado', format(new Date(), "dd/MM/yyyy HH:mm")],
+          ['Registros', String(rows.length)],
+        ]
+        const wsMeta = XLSX.utils.aoa_to_sheet(metaData)
+        wsMeta['!cols'] = [{ wch: 20 }, { wch: 40 }]
+        XLSX.utils.book_append_sheet(wb, wsMeta, 'Info')
+        
+        // Descargar
+        XLSX.writeFile(wb, `${fileName}.xlsx`)
+
+      } else if (exportFormat === 'csv') {
+        const content = [headers.join(','), ...rows.map(r => r.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))].join('\n')
+        const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8' })
         const link = document.createElement('a')
         link.href = URL.createObjectURL(blob)
         link.download = `${fileName}.csv`
         link.click()
       }
+
       setShowExportModal(false)
       toast.success(`Reporte exportado como ${exportFormat.toUpperCase()}`)
-    } catch { toast.error('Error al exportar') }
+    } catch (error) {
+      console.error('Error al exportar:', error)
+      toast.error('Error al exportar el reporte')
+    }
     finally { setIsExporting(false) }
   }
 
@@ -208,6 +332,179 @@ export function ReportsPage() {
             </div>
           </div>
         )
+      case 'vitals': {
+        // Derivar datos de signos vitales desde alertas (cada alerta refleja un evento de salud)
+        const heartAlerts = alerts.filter(a => a.type === 'HIGH_HEART_RATE' || a.type === 'LOW_HEART_RATE')
+        const spo2Alerts = alerts.filter(a => a.type === 'LOW_SPO2')
+        const tempAlerts = alerts.filter(a => a.type === 'HIGH_TEMPERATURE' || a.type === 'LOW_TEMPERATURE')
+        const fallAlerts = alerts.filter(a => a.type === 'FALL_DETECTED')
+        const sosAlerts = alerts.filter(a => a.type === 'SOS_BUTTON')
+        
+        // Personas únicas afectadas
+        const personNames = [...new Set(alerts.map(a => a.personName).filter(Boolean))]
+        const personStats = personNames.map(name => {
+          const personAlerts = alerts.filter(a => a.personName === name)
+          return {
+            name,
+            total: personAlerts.length,
+            critical: personAlerts.filter(a => a.severity === 'critical').length,
+            resolved: personAlerts.filter(a => a.isResolved).length,
+            types: [...new Set(personAlerts.map(a => ALERT_TYPE_LABELS[a.type] || a.type))],
+          }
+        }).sort((a, b) => b.critical - a.critical)
+
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricCard title="Alertas Cardíacas" value={heartAlerts.length} change={heartAlerts.length > 0 ? `${heartAlerts.filter(a => !a.isResolved).length} activas` : 'Sin alertas'} changeType={heartAlerts.length > 0 ? 'down' : 'up'} icon={<Heart className="w-5 h-5 text-red-600" />} color="red" />
+              <MetricCard title="Alertas SpO2" value={spo2Alerts.length} change={spo2Alerts.length > 0 ? `${spo2Alerts.filter(a => !a.isResolved).length} activas` : 'Niveles normales'} changeType={spo2Alerts.length > 0 ? 'down' : 'up'} icon={<Activity className="w-5 h-5 text-blue-600" />} color="blue" />
+              <MetricCard title="Alertas Temperatura" value={tempAlerts.length} change={tempAlerts.length > 0 ? `${tempAlerts.filter(a => !a.isResolved).length} activas` : 'Rango normal'} changeType={tempAlerts.length > 0 ? 'down' : 'up'} icon={<Thermometer className="w-5 h-5 text-orange-600" />} color="orange" />
+              <MetricCard title="Caídas / SOS" value={fallAlerts.length + sosAlerts.length} change={`${fallAlerts.length} caídas, ${sosAlerts.length} SOS`} changeType={fallAlerts.length + sosAlerts.length > 0 ? 'down' : 'up'} icon={<AlertTriangle className="w-5 h-5 text-yellow-600" />} color="yellow" />
+            </div>
+            
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card padding="md">
+                <h3 className="font-semibold mb-4 flex items-center gap-2"><Heart className="w-5 h-5 text-red-500" />Distribución de Eventos de Salud</h3>
+                <div className="space-y-3">
+                  <ProgressBar label="Ritmo cardíaco anormal" value={heartAlerts.length} max={Math.max(alerts.length, 1)} color="bg-red-500" />
+                  <ProgressBar label="Saturación de oxígeno baja" value={spo2Alerts.length} max={Math.max(alerts.length, 1)} color="bg-blue-500" />
+                  <ProgressBar label="Temperatura anormal" value={tempAlerts.length} max={Math.max(alerts.length, 1)} color="bg-orange-500" />
+                  <ProgressBar label="Caídas detectadas" value={fallAlerts.length} max={Math.max(alerts.length, 1)} color="bg-purple-500" />
+                  <ProgressBar label="Botón SOS presionado" value={sosAlerts.length} max={Math.max(alerts.length, 1)} color="bg-red-600" />
+                </div>
+              </Card>
+              
+              <Card padding="md">
+                <h3 className="font-semibold mb-4 flex items-center gap-2"><Users className="w-5 h-5 text-blue-500" />Estado de Salud por Persona</h3>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {personStats.length > 0 ? personStats.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${p.critical > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {p.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{p.name}</p>
+                          <p className="text-xs text-gray-500">{p.types.slice(0, 2).join(', ')}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex gap-1">
+                          {p.critical > 0 && <Badge variant="danger" size="sm">{p.critical} críticas</Badge>}
+                          <Badge variant={p.resolved === p.total ? 'success' : 'warning'} size="sm">{p.total} alertas</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  )) : <p className="text-gray-400 text-center py-8">No hay datos de personas monitoreadas</p>}
+                </div>
+              </Card>
+            </div>
+
+            <Card padding="md">
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-green-500" />Indicadores de Salud del Sistema</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-green-50 rounded-xl text-center">
+                  <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-green-700">{monitored.filter(m => m.devicesCount > 0).length}</p>
+                  <p className="text-xs text-green-600">Personas con monitoreo activo</p>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-xl text-center">
+                  <Smartphone className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-blue-700">{devices.filter(d => d.isConnected).length}</p>
+                  <p className="text-xs text-blue-600">Dispositivos transmitiendo</p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-xl text-center">
+                  <Shield className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-purple-700">{personNames.length}</p>
+                  <p className="text-xs text-purple-600">Personas con eventos registrados</p>
+                </div>
+                <div className="p-4 bg-orange-50 rounded-xl text-center">
+                  <Zap className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-orange-700">{Math.round((stats.alerts.resolved / (stats.alerts.total || 1)) * 100)}%</p>
+                  <p className="text-xs text-orange-600">Tasa de resolución</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )
+      }
+      case 'activity': {
+        // Calcular métricas de actividad del sistema
+        const totalRegistros = users.length + devices.length + monitored.length + alerts.length
+        const recentUsers = users.filter(u => {
+          const created = new Date(u.createdAt)
+          return created >= range.from && created <= range.to
+        })
+        const resolvedAlerts = alerts.filter(a => a.isResolved)
+        const activeDevices = devices.filter(d => d.isConnected)
+        
+        // Simular eventos de actividad basados en datos reales
+        const activityLog = [
+          ...recentUsers.map(u => ({ action: 'Usuario registrado', detail: `${u.firstName} ${u.lastName} (${u.email})`, date: u.createdAt, type: 'user' as const })),
+          ...resolvedAlerts.map(a => ({ action: 'Alerta resuelta', detail: `${ALERT_TYPE_LABELS[a.type] || a.type} - ${a.personName}`, date: a.resolvedAt || a.createdAt, type: 'alert' as const })),
+          ...alerts.filter(a => a.severity === 'critical').map(a => ({ action: 'Alerta crítica generada', detail: `${ALERT_TYPE_LABELS[a.type] || a.type} - ${a.personName}`, date: a.createdAt, type: 'critical' as const })),
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 15)
+        
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricCard title="Registros Totales" value={totalRegistros} change={`${users.length} usuarios, ${devices.length} dispositivos`} changeType="neutral" icon={<BarChart3 className="w-5 h-5 text-blue-600" />} color="blue" />
+              <MetricCard title="Nuevos en Período" value={recentUsers.length} change={recentUsers.length > 0 ? 'Usuarios creados' : 'Sin nuevos registros'} changeType={recentUsers.length > 0 ? 'up' : 'neutral'} icon={<Users className="w-5 h-5 text-green-600" />} color="green" />
+              <MetricCard title="Alertas Atendidas" value={resolvedAlerts.length} change={`de ${alerts.length} totales`} changeType={resolvedAlerts.length > 0 ? 'up' : 'neutral'} icon={<CheckCircle className="w-5 h-5 text-purple-600" />} color="purple" />
+              <MetricCard title="Dispositivos Online" value={activeDevices.length} change={`${Math.round((activeDevices.length / (devices.length || 1)) * 100)}% conectados`} changeType="up" icon={<Zap className="w-5 h-5 text-orange-600" />} color="orange" />
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card padding="md">
+                <h3 className="font-semibold mb-4 flex items-center gap-2"><Activity className="w-5 h-5 text-blue-500" />Registro de Actividad Reciente</h3>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {activityLog.length > 0 ? activityLog.map((log, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${log.type === 'critical' ? 'bg-red-500' : log.type === 'alert' ? 'bg-green-500' : 'bg-blue-500'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{log.action}</p>
+                        <p className="text-xs text-gray-500 truncate">{log.detail}</p>
+                      </div>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{format(new Date(log.date), 'dd/MM HH:mm')}</span>
+                    </div>
+                  )) : <p className="text-gray-400 text-center py-8">No hay actividad registrada en el período</p>}
+                </div>
+              </Card>
+
+              <Card padding="md">
+                <h3 className="font-semibold mb-4 flex items-center gap-2"><PieChart className="w-5 h-5 text-purple-500" />Distribución de Actividad</h3>
+                <div className="space-y-3">
+                  <ProgressBar label="Gestión de usuarios" value={users.length} max={totalRegistros} color="bg-blue-500" />
+                  <ProgressBar label="Gestión de dispositivos" value={devices.length} max={totalRegistros} color="bg-green-500" />
+                  <ProgressBar label="Personas monitoreadas" value={monitored.length} max={totalRegistros} color="bg-purple-500" />
+                  <ProgressBar label="Alertas procesadas" value={alerts.length} max={totalRegistros} color="bg-orange-500" />
+                </div>
+                <div className="mt-6 pt-4 border-t">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Estado Operativo</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-green-50 rounded-lg text-center">
+                      <p className="text-lg font-bold text-green-700">{Math.round((users.filter(u => u.isActive).length / (users.length || 1)) * 100)}%</p>
+                      <p className="text-xs text-green-600">Usuarios activos</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-lg text-center">
+                      <p className="text-lg font-bold text-blue-700">{Math.round((activeDevices.length / (devices.length || 1)) * 100)}%</p>
+                      <p className="text-xs text-blue-600">Conectividad</p>
+                    </div>
+                    <div className="p-3 bg-purple-50 rounded-lg text-center">
+                      <p className="text-lg font-bold text-purple-700">{Math.round((monitored.filter(m => m.devicesCount > 0).length / (monitored.length || 1)) * 100)}%</p>
+                      <p className="text-xs text-purple-600">Cobertura</p>
+                    </div>
+                    <div className="p-3 bg-orange-50 rounded-lg text-center">
+                      <p className="text-lg font-bold text-orange-700">{Math.round((resolvedAlerts.length / (alerts.length || 1)) * 100)}%</p>
+                      <p className="text-xs text-orange-600">Resolución</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )
+      }
       default:
         return <Card padding="lg" className="text-center"><Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-xl font-semibold text-gray-700 mb-2">Reporte en Desarrollo</h3><p className="text-gray-500">Este tipo de reporte estará disponible próximamente.</p></Card>
     }

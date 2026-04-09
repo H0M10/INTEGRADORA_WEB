@@ -68,6 +68,7 @@ export function AlertsPage() {
       resolved: resolvedFilter !== 'all' ? resolvedFilter === 'resolved' : undefined,
       ...getDateRange()
     }),
+    refetchInterval: 30000, // Auto-refresh cada 30 segundos para alertas en tiempo real
   })
 
   const dismissMutation = useMutation({
