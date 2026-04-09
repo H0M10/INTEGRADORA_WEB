@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { 
   Users, 
-  Smartphone, 
   Bell, 
   UserCheck, 
   TrendingUp,
   AlertTriangle,
   Wifi,
-  WifiOff,
   Activity,
   ArrowUpRight,
   ArrowDownRight
@@ -22,10 +20,9 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
-  Legend
+  Cell
 } from 'recharts'
-import { PageHeader, Spinner, Badge } from '@/components/ui'
+import { Spinner } from '@/components/ui'
 import { dashboardService, alertsService } from '@/services'
 import type { Alert } from '@/types'
 
@@ -287,7 +284,7 @@ export function DashboardPage() {
                     </div>
                     <div>
                       <p className="font-bold text-slate-900 leading-tight">{alert.type}</p>
-                      <p className="text-sm text-slate-500 mt-0.5 max-w-lg truncate">{alert.description}</p>
+                      <p className="text-sm text-slate-500 mt-0.5 max-w-lg truncate">{alert.message}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 sm:ml-auto">

@@ -97,6 +97,8 @@ export function ReportsPage() {
     { severity: 'Info', count: alerts.filter(a => a.severity === 'info').length, color: 'bg-blue-500' },
   ], [alerts])
 
+  const currentReport = useMemo(() => REPORTS.find(r => r.type === selectedReport), [selectedReport])
+
   const handleExport = async (exportFormat: ExportFormat) => {
     setIsExporting(true)
     try {
@@ -509,8 +511,6 @@ export function ReportsPage() {
         return <Card padding="lg" className="text-center"><Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-xl font-semibold text-gray-700 mb-2">Reporte en Desarrollo</h3><p className="text-gray-500">Este tipo de reporte estará disponible próximamente.</p></Card>
     }
   }
-
-  const currentReport = REPORTS.find(r => r.type === selectedReport)
 
   return (
     <div className="space-y-6 animate-fade-in">
