@@ -225,7 +225,7 @@ export function DashboardPage() {
             <p className="text-sm text-gray-500">Últimas alertas del sistema</p>
           </div>
           <a 
-            href="/alerts" 
+            href="#/alerts" 
             className="text-sm text-primary-600 hover:text-primary-700 font-medium"
           >
             Ver todas →
