@@ -45,7 +45,7 @@ export const ROLE_PERMISSIONS: Record<AdminRole, RolePermissions> = {
     devices: { view: true, create: true, edit: true, delete: true },
     alerts: { view: true, resolve: true },
     monitored: { view: true, edit: true },
-    admins: { view: false, create: false, edit: false, delete: false },
+    admins: { view: true, create: true, edit: true, delete: false },
     reports: { view: true, export: true },
     settings: { view: false, edit: false },
   },

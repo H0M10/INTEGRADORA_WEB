@@ -138,8 +138,24 @@ export function ReportsPage() {
               headers: ['Tipo', 'Severidad', 'Persona', 'Mensaje', 'Estado', 'Fecha'],
               rows: alerts.map(a => [ALERT_TYPE_LABELS[a.type] || a.type, ALERT_SEVERITY_LABELS[a.severity], a.personName || 'N/A', a.message, a.isResolved ? 'Resuelta' : 'Activa', format(new Date(a.createdAt), 'dd/MM/yyyy HH:mm')]),
             }
+          case 'vitals':
+            return {
+              headers: ['Tipo Alerta', 'Severidad', 'Persona', 'Mensaje', 'Estado', 'Fecha'],
+              rows: alerts
+                .filter(a => ['HIGH_HEART_RATE','LOW_HEART_RATE','LOW_SPO2','HIGH_TEMPERATURE','LOW_TEMPERATURE','HIGH_BLOOD_PRESSURE','LOW_BLOOD_PRESSURE','FALL_DETECTED'].includes(a.type))
+                .map(a => [ALERT_TYPE_LABELS[a.type] || a.type, ALERT_SEVERITY_LABELS[a.severity], a.personName || 'N/A', a.message, a.isResolved ? 'Resuelta' : 'Activa', format(new Date(a.createdAt), 'dd/MM/yyyy HH:mm')]),
+            }
+          case 'activity':
+            return {
+              headers: ['Acción', 'Detalle', 'Fecha'],
+              rows: [
+                ...users.map(u => ['Usuario registrado', `${u.firstName} ${u.lastName} (${u.email})`, format(new Date(u.createdAt), 'dd/MM/yyyy HH:mm')]),
+                ...alerts.filter(a => a.isResolved).map(a => ['Alerta resuelta', `${ALERT_TYPE_LABELS[a.type] || a.type} - ${a.personName}`, format(new Date(a.resolvedAt || a.createdAt), 'dd/MM/yyyy HH:mm')]),
+                ...alerts.filter(a => a.severity === 'critical').map(a => ['Alerta crítica generada', `${ALERT_TYPE_LABELS[a.type] || a.type} - ${a.personName}`, format(new Date(a.createdAt), 'dd/MM/yyyy HH:mm')]),
+              ].sort((a, b) => new Date(b[2]).getTime() - new Date(a[2]).getTime()),
+            }
           default:
-            return { headers: ['Dato'], rows: [['Reporte en desarrollo']] }
+            return { headers: ['Dato'], rows: [['Sin datos disponibles']] }
         }
       }
 

@@ -236,7 +236,7 @@ export function UsersPage() {
     
     if (modalMode === 'create') {
       if (!formData.password) errors.password = 'Contraseña requerida'
-      else if (formData.password.length < 6) errors.password = 'Mínimo 6 caracteres'
+      else if (formData.password.length < 8) errors.password = 'Mínimo 8 caracteres'
     }
     
     setFormErrors(errors)
@@ -508,7 +508,7 @@ export function UsersPage() {
             {modalMode === 'create' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-                <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.password ? 'border-red-500' : 'border-gray-200'}`} placeholder="Mínimo 6 caracteres" />
+                <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.password ? 'border-red-500' : 'border-gray-200'}`} placeholder="Mínimo 8 caracteres" />
                 {formErrors.password && <p className="text-xs text-red-500 mt-1">{formErrors.password}</p>}
               </div>
             )}

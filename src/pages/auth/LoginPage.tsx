@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn, AlertCircle, Clock, ShieldAlert, Lock } from 'lucide-react'
+import { Eye, EyeOff, LogIn, AlertCircle, Clock } from 'lucide-react'
 import { useAuthStore } from '@/stores'
 import { Button, Input } from '@/components/ui'
 import toast from 'react-hot-toast'
@@ -20,70 +20,72 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>
 
-// Constantes de rate limiting
-const MAX_ATTEMPTS = 5
-const LOCKOUT_DURATION_MS = 5 * 60 * 1000 // 5 minutos
-const STORAGE_KEY = 'ng_login_attempts'
-
-interface LoginAttemptData {
-  count: number
-  lockedUntil: number | null // timestamp
-  lastAttempt: number // timestamp
-}
-
-const getAttemptData = (): LoginAttemptData => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch {}
-  return { count: 0, lockedUntil: null, lastAttempt: 0 }
-}
-
-const saveAttemptData = (data: LoginAttemptData) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-}
-
-const clearAttemptData = () => {
-  localStorage.removeItem(STORAGE_KEY)
-}
-
 export function LoginPage() {
   const navigate = useNavigate()
   const { login, isLoading, error, clearError } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [sessionMessage, setSessionMessage] = useState<string | null>(null)
-  const [attemptData, setAttemptData] = useState<LoginAttemptData>(getAttemptData)
-  const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const [isLocked, setIsLocked] = useState(false)
+  const [lockTimeRemaining, setLockTimeRemaining] = useState(0)
   
-  const isLocked = attemptData.lockedUntil !== null && Date.now() < attemptData.lockedUntil
+  const LOCKOUT_KEY = 'ng_login_lockout'
+  const MAX_ATTEMPTS = 5
+  const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutos
 
-  // Calcular tiempo restante de bloqueo
-  const updateRemainingTime = useCallback(() => {
-    if (attemptData.lockedUntil && Date.now() < attemptData.lockedUntil) {
-      setRemainingSeconds(Math.ceil((attemptData.lockedUntil - Date.now()) / 1000))
-    } else if (attemptData.lockedUntil && Date.now() >= attemptData.lockedUntil) {
-      // El bloqueo expiró, resetear
-      const newData = { count: 0, lockedUntil: null, lastAttempt: 0 }
-      setAttemptData(newData)
-      saveAttemptData(newData)
-      setRemainingSeconds(0)
-    }
-  }, [attemptData.lockedUntil])
-
-  // Timer countdown
+  // Verificar lockout al montar
   useEffect(() => {
-    if (!isLocked) return
-    updateRemainingTime()
-    const interval = setInterval(updateRemainingTime, 1000)
+    checkLockout()
+    const interval = setInterval(checkLockout, 1000)
     return () => clearInterval(interval)
-  }, [isLocked, updateRemainingTime])
+  }, [])
 
+  const checkLockout = () => {
+    const lockData = localStorage.getItem(LOCKOUT_KEY)
+    if (lockData) {
+      const { lockedUntil, attempts } = JSON.parse(lockData)
+      if (lockedUntil && Date.now() < lockedUntil) {
+        setIsLocked(true)
+        setLockTimeRemaining(Math.ceil((lockedUntil - Date.now()) / 1000))
+      } else if (lockedUntil && Date.now() >= lockedUntil) {
+        // Lockout expirado, resetear
+        localStorage.removeItem(LOCKOUT_KEY)
+        setIsLocked(false)
+        setLockTimeRemaining(0)
+      } else {
+        setIsLocked(false)
+      }
+    }
+  }
+
+  const recordFailedAttempt = () => {
+    const lockData = localStorage.getItem(LOCKOUT_KEY)
+    let attempts = 1
+    if (lockData) {
+      const parsed = JSON.parse(lockData)
+      attempts = (parsed.attempts || 0) + 1
+    }
+    if (attempts >= MAX_ATTEMPTS) {
+      const lockedUntil = Date.now() + LOCKOUT_DURATION_MS
+      localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ attempts, lockedUntil }))
+      setIsLocked(true)
+    } else {
+      localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ attempts }))
+    }
+  }
+
+  const resetAttempts = () => {
+    localStorage.removeItem(LOCKOUT_KEY)
+    setIsLocked(false)
+    setLockTimeRemaining(0)
+  }
+  
   // Verificar si hay mensaje de sesión expirada
   useEffect(() => {
     const redirectReason = sessionStorage.getItem('auth_redirect_reason')
     if (redirectReason) {
       setSessionMessage(redirectReason)
       sessionStorage.removeItem('auth_redirect_reason')
+      // Mostrar toast también
       toast.error(redirectReason, { duration: 5000 })
     }
   }, [])
@@ -99,54 +101,20 @@ export function LoginPage() {
       password: '',
     },
   })
-
-  const registerFailedAttempt = () => {
-    const current = getAttemptData()
-    const newCount = current.count + 1
-    const newData: LoginAttemptData = {
-      count: newCount,
-      lockedUntil: newCount >= MAX_ATTEMPTS ? Date.now() + LOCKOUT_DURATION_MS : null,
-      lastAttempt: Date.now(),
-    }
-    saveAttemptData(newData)
-    setAttemptData(newData)
-
-    if (newCount >= MAX_ATTEMPTS) {
-      toast.error(`Cuenta bloqueada temporalmente por ${LOCKOUT_DURATION_MS / 60000} minutos`, { duration: 6000 })
-    } else {
-      const remaining = MAX_ATTEMPTS - newCount
-      toast.error(`Credenciales incorrectas. ${remaining} intento${remaining === 1 ? '' : 's'} restante${remaining === 1 ? '' : 's'}`, { duration: 4000 })
-    }
-  }
   
   const onSubmit = async (data: LoginFormData) => {
-    // Verificar si está bloqueado
-    if (isLocked) {
-      toast.error('Cuenta bloqueada. Espera a que termine el tiempo de espera.')
-      return
-    }
-
+    if (isLocked) return
     try {
       clearError()
       await login(data)
-      // Login exitoso: limpiar intentos
-      clearAttemptData()
-      setAttemptData({ count: 0, lockedUntil: null, lastAttempt: 0 })
+      resetAttempts()
       toast.success('¡Bienvenido al panel de administración!')
       navigate('/dashboard')
     } catch (err) {
-      registerFailedAttempt()
+      recordFailedAttempt()
       console.error('Login error:', err)
     }
   }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const attemptsRemaining = MAX_ATTEMPTS - attemptData.count
   
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
@@ -156,30 +124,9 @@ export function LoginPage() {
           Acceso exclusivo para administradores del sistema
         </p>
       </div>
-
-      {/* Bloqueo por intentos fallidos */}
-      {isLocked && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-800">Acceso bloqueado temporalmente</p>
-              <p className="text-sm text-red-600 mt-1">
-                Se han excedido los {MAX_ATTEMPTS} intentos permitidos. 
-                Por seguridad, el acceso ha sido bloqueado.
-              </p>
-              <div className="mt-3 flex items-center gap-2 bg-red-100 rounded-lg px-3 py-2">
-                <Lock className="w-4 h-4 text-red-600" />
-                <span className="text-red-700 font-mono font-bold text-lg">{formatTime(remainingSeconds)}</span>
-                <span className="text-red-600 text-xs">restantes</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Mensaje de sesión expirada */}
-      {sessionMessage && !isLocked && (
+      {sessionMessage && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
           <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
@@ -189,24 +136,28 @@ export function LoginPage() {
         </div>
       )}
       
+      {/* Mensaje de cuenta bloqueada por intentos */}
+      {isLocked && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Cuenta bloqueada temporalmente</p>
+            <p className="text-sm text-red-600 mt-1">
+              Has excedido el límite de {5} intentos fallidos. 
+              Intenta de nuevo en {Math.floor(lockTimeRemaining / 60)}:{String(lockTimeRemaining % 60).padStart(2, '0')} minutos.
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* Mensaje de error global */}
-      {error && !isLocked && (
+      {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-red-800">Error de autenticación</p>
             <p className="text-sm text-red-600 mt-1">{error}</p>
           </div>
-        </div>
-      )}
-
-      {/* Advertencia de intentos restantes */}
-      {attemptData.count > 0 && attemptData.count < MAX_ATTEMPTS && !isLocked && (
-        <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-          <p className="text-sm text-yellow-700">
-            <strong>{attemptsRemaining}</strong> intento{attemptsRemaining === 1 ? '' : 's'} restante{attemptsRemaining === 1 ? '' : 's'} antes del bloqueo temporal
-          </p>
         </div>
       )}
       
@@ -219,7 +170,7 @@ export function LoginPage() {
           <input
             type="email"
             placeholder="admin@novaguardian.com"
-            disabled={isLoading || isLocked}
+            disabled={isLoading}
             className={`
               w-full px-4 py-3 border rounded-lg text-sm
               placeholder-gray-400 text-gray-900
@@ -249,7 +200,7 @@ export function LoginPage() {
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
-              disabled={isLoading || isLocked}
+              disabled={isLoading}
               className={`
                 w-full px-4 py-3 pr-12 border rounded-lg text-sm
                 placeholder-gray-400 text-gray-900
@@ -303,11 +254,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isLoading || isLocked}
-          className={`w-full flex items-center justify-center gap-2 font-medium py-3 px-4 rounded-lg transition-all disabled:cursor-not-allowed ${
-            isLocked 
-              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
-          }`}
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>
@@ -316,11 +263,6 @@ export function LoginPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               Iniciando sesión...
-            </>
-          ) : isLocked ? (
-            <>
-              <Lock className="w-5 h-5" />
-              Acceso Bloqueado
             </>
           ) : (
             <>
@@ -342,4 +284,3 @@ export function LoginPage() {
     </div>
   )
 }
-

@@ -42,9 +42,8 @@ function clearSessionAndRedirect(reason: string = 'session_expired') {
     sessionStorage.setItem('auth_redirect_reason', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.')
   }
   
-  // Usar replace para evitar que el usuario vuelva atrás (HashRouter compatible)
-  window.location.hash = '#/login'
-  window.location.reload()
+  // Usar replace para evitar que el usuario vuelva atrás
+  window.location.replace('/login')
 }
 
 // Variable para evitar múltiples redirects simultáneos
